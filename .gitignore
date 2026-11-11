@@ -1,0 +1,4 @@
+backend\.env
+backend\conecta_blocos.db
+backend\Procfile
+backend\__pycache__/

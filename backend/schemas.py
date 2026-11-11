@@ -1,0 +1,65 @@
+from datetime import datetime
+from typing import Any, Literal
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+
+class TentativaCreate(BaseModel):
+    nome: str = Field(min_length=1)
+    id_questao: str = Field(min_length=1)
+    n_tentativas: int = Field(ge=1)
+    code: str = ""
+    workspace_json: dict | None = None
+
+
+class QuestaoCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    id_questao: str = Field(min_length=1)
+    titulo: str = Field(min_length=1)
+    enunciado: str = Field(min_length=1)
+    tipo_questao: Literal["fechada", "aberta"]
+    codigo_esperado: str | None = None
+    blocos_esperados: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def validate_expected_answer(self):
+        if self.tipo_questao == "fechada" and not self.codigo_esperado:
+            raise ValueError("Questões do tipo 'fechada' precisam de codigo_esperado.")
+        if self.tipo_questao == "aberta" and not self.blocos_esperados:
+            raise ValueError("Questões do tipo 'aberta' precisam de blocos_esperados.")
+        return self
+
+
+class QuestaoImport(BaseModel):
+    questoes: list[QuestaoCreate] = Field(min_length=1)
+
+
+class UsuarioCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    nome: str = Field(min_length=1)
+    email: EmailStr
+    senha: str = Field(min_length=6)
+    tipo_usuario: Literal["professor", "estudante"]
+
+
+class UsuarioLogin(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    email: EmailStr
+    senha: str = Field(min_length=1)
+
+
+class UsuarioResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nome: str
+    email: EmailStr
+    tipo_usuario: str
+    criado_em: datetime
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    usuario: UsuarioResponse
