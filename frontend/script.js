@@ -63,15 +63,28 @@ function initAuthorWorkspace() {
   });
 }
 
+function initEditWorkspace() {
+  if (editWorkspace) return;
+
+  editWorkspace = Blockly.inject('blockly-edit-author', {
+    toolbox,
+    move: { scrollbars: true, drag: true, wheel: true }
+  });
+}
+
 let workspace = null;
 let authorWorkspace = null;
+let editWorkspace = null;
 let currentQuestionId = null;
+let currentEditingQuestionId = null;
 const questionStates = {};
 
 const $ = (id) => document.getElementById(id);
 const cadastroBtn = $('cadastro-btn');
 const loginBtn = $('login-btn');
 const estatisticasBtn = $('estatisticas-btn');
+const perfilAlunoBtn = $('perfil-aluno-btn');
+const perfilProfessorBtn = $('perfil-professor-btn');
 const logoutBtn = $('logout-btn');
 const inicioBtn = $('inicio-btn');
 const welcomeView = $('welcome-view');
@@ -80,6 +93,8 @@ const registerView = $('register-view');
 const loginView = $('login-view');
 const questionView = $('question-view');
 const createQuestionView = $('create-question-view');
+const editQuestionView = $('edit-question-view');
+const editProfileView = $('edit-profile-view');
 const statisticsView = $('statistics-view');
 const managementPanel = $('management-panel');
 const studentQuestionsSection = $('student-questions-section');
@@ -101,6 +116,12 @@ const arquivoQuestoes = $('arquivo-questoes');
 const importacaoStatus = $('importacao-status');
 const formNovaQuestao = $('form-nova-questao');
 const cancelarNovaQuestaoBtn = $('cancelar-nova-questao-btn');
+const formEditarQuestao = $('form-editar-questao');
+const cancelarEditarQuestaoBtn = $('cancelar-editar-questao-btn');
+const excluirEditarQuestaoBtn = $('excluir-editar-questao-btn');
+const formEditarPerfil = $('form-editar-perfil');
+const cancelarEditarPerfilBtn = $('cancelar-editar-perfil-btn');
+const excluirPerfilBtn = $('excluir-perfil-btn');
 const formCadastro = $('form-cadastro');
 const formLogin = $('form-login');
 const cadastroStatus = $('cadastro-status');
@@ -108,17 +129,22 @@ const loginStatus = $('login-status');
 const enviarCadastroBtn = $('enviar-cadastro-btn');
 const enviarLoginBtn = $('enviar-login-btn');
 
-const localHosts = new Set(['localhost', '127.0.0.1', '::1']);
-const isLocalFrontend =
-  localHosts.has(window.location.hostname) || window.location.protocol === 'file:';
-const apiUrl = isLocalFrontend
-  ? 'http://127.0.0.1:8000'
-  : 'https://conecta-blocos-backend.onrender.com';
+const apiUrl = window.AppApi.baseUrl;
+const { alert: showAlert, confirm: confirmAction, requestPassword } = window.AppAlerts;
 let questions = [];
 let currentUser = null;
+let profileEditTarget = null;
+const portugueseCollator = new Intl.Collator('pt-BR', {
+  sensitivity: 'base',
+  numeric: true
+});
 
 function getToken() {
   return localStorage.getItem('token');
+}
+
+function isProfessor() {
+  return Boolean(currentUser && currentUser.tipo_usuario === 'professor');
 }
 
 function setToken(token) {
@@ -130,12 +156,7 @@ function setToken(token) {
 }
 
 function getAuthHeaders() {
-  const token = getToken();
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  return headers;
+  return window.AppApi.headers();
 }
 
 async function checkSession() {
@@ -170,6 +191,11 @@ function updateHeader() {
     'hidden',
     !isLoggedIn || currentUser.tipo_usuario !== 'estudante'
   );
+  perfilAlunoBtn.classList.toggle(
+    'hidden',
+    !isLoggedIn || currentUser.tipo_usuario !== 'estudante'
+  );
+  perfilProfessorBtn.classList.toggle('hidden', !isProfessor);
   logoutBtn.classList.toggle('hidden', !isLoggedIn);
   managementPanel.classList.toggle('hidden', !isProfessor);
   studentQuestionsSection.classList.toggle('hidden', isProfessor);
@@ -191,6 +217,8 @@ function hideViews() {
     loginView,
     questionView,
     createQuestionView,
+    editQuestionView,
+    editProfileView,
     statisticsView
   ].forEach((view) => view.classList.add('hidden'));
 }
@@ -226,6 +254,12 @@ function getAuthApiErrorMessage(response, detail, fallback) {
   return getApiErrorMessage(detail, fallback);
 }
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[character]);
+}
+
 function renderQuestionList() {
   listaQuestoes.replaceChildren();
   if (questions.length === 0) {
@@ -251,6 +285,19 @@ function renderQuestionList() {
   });
 }
 
+function createIconActionButton(label, imagePath, onClick) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'icon-action-btn';
+  button.setAttribute('aria-label', label);
+  const image = document.createElement('img');
+  image.src = imagePath;
+  image.alt = '';
+  button.append(image);
+  button.addEventListener('click', onClick);
+  return button;
+}
+
 function renderProfessorQuestionList() {
   listaQuestoesProfessor.replaceChildren();
   if (questions.length === 0) {
@@ -261,13 +308,28 @@ function renderProfessorQuestionList() {
   questions.forEach((question) => {
     const item = document.createElement('article');
     item.className = 'management-question-item';
+    item.dataset.questionId = question.id_questao;
 
     const heading = document.createElement('h3');
     heading.textContent = question.titulo;
     const statement = document.createElement('p');
     statement.textContent = question.enunciado;
 
-    item.append(heading, statement);
+    const actions = document.createElement('div');
+    actions.className = 'question-management-actions';
+
+    const editButton = createIconActionButton(
+      `Editar ${question.titulo}`,
+      'img/editar.png',
+      () => abrirEdicaoQuestao(question.id_questao)
+    );
+    const deleteButton = createIconActionButton(
+      `Excluir ${question.titulo}`,
+      'img/excluir.png',
+      () => excluirQuestao(question.id_questao)
+    );
+    actions.append(editButton, deleteButton);
+    item.append(heading, statement, actions);
     listaQuestoesProfessor.append(item);
   });
 }
@@ -278,7 +340,9 @@ async function carregarQuestoes() {
   try {
     const response = await fetch(`${apiUrl}/questoes`);
     if (!response.ok) throw new Error('Não foi possível carregar as questões.');
-    questions = await response.json();
+    questions = (await response.json()).sort((left, right) =>
+      portugueseCollator.compare(left.titulo, right.titulo)
+    );
     renderQuestionList();
     renderProfessorQuestionList();
   } catch (error) {
@@ -293,15 +357,9 @@ async function carregarAlunos() {
 
   listaAlunos.textContent = 'Carregando alunos...';
   try {
-    const response = await fetch(`${apiUrl}/usuarios/alunos`, {
-      headers: getAuthHeaders()
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      throw new Error(
-        getApiErrorMessage(result.detail, 'Não foi possível carregar os alunos.')
-      );
-    }
+    const result = (await window.AppApi.request('/usuarios/alunos')).sort((left, right) =>
+      portugueseCollator.compare(left.nome, right.nome)
+    );
 
     listaAlunos.replaceChildren();
     if (result.length === 0) {
@@ -312,16 +370,175 @@ async function carregarAlunos() {
     result.forEach((student) => {
       const item = document.createElement('article');
       item.className = 'student-item';
+      item.dataset.studentId = student.id_aluno;
       const name = document.createElement('strong');
       name.textContent = student.nome;
       const email = document.createElement('span');
       email.textContent = student.email;
-      item.append(name, email);
+
+      const actions = document.createElement('div');
+      actions.className = 'question-management-actions';
+
+      const editButton = createIconActionButton(
+        `Editar ${student.nome}`,
+        'img/editar.png',
+        () => abrirEdicaoAluno(student.id_aluno)
+      );
+      const deleteButton = createIconActionButton(
+        `Excluir ${student.nome}`,
+        'img/excluir.png',
+        () => excluirAluno(student.id_aluno, student.nome)
+      );
+      actions.append(editButton, deleteButton);
+      item.append(name, email, actions);
       listaAlunos.append(item);
     });
   } catch (error) {
     listaAlunos.textContent = `Não foi possível carregar os alunos: ${error.message}`;
     console.error('Erro ao carregar alunos:', error);
+  }
+}
+
+async function abrirEdicaoAluno(alunoId) {
+  if (!isProfessor()) return;
+
+  try {
+    const student = await window.AppApi.request(
+      `/usuarios/alunos/${encodeURIComponent(alunoId)}`
+    );
+    openProfileEditor(student, { kind: 'student', id: student.id_aluno });
+  } catch (error) {
+    showAlert({ icon: 'error', title: 'Não foi possível abrir o perfil', text: error.message });
+    console.error('Erro ao carregar aluno para edição:', error);
+  }
+}
+
+async function excluirAluno(alunoId, nome) {
+  if (!isProfessor()) return;
+  const confirmed = await confirmAction({
+    title: 'Excluir aluno?',
+    text: `A conta de ${nome} será excluída. Esta ação não pode ser desfeita.`,
+    confirmButtonText: 'Excluir aluno',
+    confirmButtonColor: '#b42318'
+  });
+  if (!confirmed) return;
+
+  try {
+    await window.AppApi.request(
+      `/usuarios/alunos/${encodeURIComponent(alunoId)}`,
+      { method: 'DELETE' }
+    );
+    if (profileEditTarget?.kind === 'student' && profileEditTarget.id === alunoId) {
+      profileEditTarget = null;
+      showHome();
+    }
+    await carregarAlunos();
+    await showAlert({
+      icon: 'success',
+      title: 'Aluno excluído',
+      text: 'A conta foi excluída com sucesso.'
+    });
+  } catch (error) {
+    await showAlert({ icon: 'error', title: 'Não foi possível excluir o aluno', text: error.message });
+  }
+}
+
+function openProfileEditor(user, target) {
+  profileEditTarget = target;
+  $('perfil-edicao-tipo').textContent = target.kind === 'self'
+    ? 'Minha conta'
+    : 'Perfil do aluno';
+  $('perfil-edicao-titulo').textContent = target.kind === 'self'
+    ? 'Editar meu perfil'
+    : 'Editar perfil do aluno';
+  $('perfil-edicao-nome').value = user.nome;
+  $('perfil-edicao-email').value = user.email;
+  $('perfil-edicao-senha').value = '';
+  $('perfil-edicao-status').textContent = '';
+  excluirPerfilBtn.textContent = target.kind === 'self'
+    ? 'Excluir conta'
+    : 'Excluir aluno';
+  document.body.classList.remove('auth-screen');
+  hideViews();
+  editProfileView.classList.remove('hidden');
+  voltarHomeBtn.classList.remove('hidden');
+  scrollToPageStart();
+}
+
+function editarPerfilProfessor() {
+  if (!isProfessor()) return;
+  openProfileEditor(currentUser, { kind: 'self' });
+}
+
+function editarPerfilAluno() {
+  if (!currentUser || currentUser.tipo_usuario !== 'estudante') return;
+  openProfileEditor(currentUser, { kind: 'self' });
+}
+
+async function salvarPerfil(event) {
+  event.preventDefault();
+  if (!profileEditTarget) return;
+
+  const payload = {
+    nome: $('perfil-edicao-nome').value.trim(),
+    email: $('perfil-edicao-email').value.trim(),
+    senha: $('perfil-edicao-senha').value || null
+  };
+  const isSelf = profileEditTarget.kind === 'self';
+  const path = isSelf
+    ? '/auth/me'
+    : `/usuarios/alunos/${encodeURIComponent(profileEditTarget.id)}`;
+
+  try {
+    const updatedUser = await window.AppApi.request(path, {
+      method: 'PUT',
+      body: payload
+    });
+    if (isSelf) currentUser = updatedUser;
+    profileEditTarget = null;
+    if (isSelf) updateHeader();
+    else await carregarAlunos();
+    showHome();
+    await showAlert({
+      icon: 'success',
+      title: 'Perfil atualizado',
+      text: 'As alterações foram salvas com sucesso.'
+    });
+  } catch (error) {
+    $('perfil-edicao-status').textContent = error.message;
+    console.error('Erro ao atualizar perfil:', error);
+  }
+}
+
+async function excluirPerfil() {
+  if (!profileEditTarget) return;
+  const isSelf = profileEditTarget.kind === 'self';
+  if (!isSelf) {
+    await excluirAluno(profileEditTarget.id, $('perfil-edicao-nome').value);
+    return;
+  }
+
+  const result = await requestPassword({
+    title: 'Excluir sua conta?',
+    text: 'Esta ação não pode ser desfeita. Confirme com sua senha atual.',
+    confirmButtonText: 'Excluir conta'
+  });
+  if (!result.isConfirmed) return;
+
+  try {
+    await window.AppApi.request('/auth/me', {
+      method: 'DELETE',
+      body: { senha: result.value }
+    });
+    profileEditTarget = null;
+    logout();
+    await showAlert({
+      icon: 'success',
+      title: 'Conta excluída',
+      text: 'Sua conta foi excluída.'
+    });
+  } catch (error) {
+    await showAlert({ icon: 'error', title: 'Não foi possível excluir', text: error.message });
   }
 }
 
@@ -495,6 +712,14 @@ inicioBtn.addEventListener('click', () => {
   else showWelcome();
 });
 estatisticasBtn.addEventListener('click', showStatistics);
+perfilAlunoBtn.addEventListener('click', editarPerfilAluno);
+perfilProfessorBtn.addEventListener('click', editarPerfilProfessor);
+formEditarPerfil.addEventListener('submit', salvarPerfil);
+cancelarEditarPerfilBtn.addEventListener('click', () => {
+  profileEditTarget = null;
+  showHome();
+});
+excluirPerfilBtn.addEventListener('click', excluirPerfil);
 questoesCadastradasDetails.addEventListener('toggle', () => {
   if (questoesCadastradasDetails.open) carregarQuestoes();
 });
@@ -502,7 +727,7 @@ alunosCadastradosDetails.addEventListener('toggle', () => {
   if (alunosCadastradosDetails.open) carregarAlunos();
 });
 novaQuestaoBtn.addEventListener('click', () => {
-  if (!currentUser || currentUser.tipo_usuario !== 'professor') return;
+  if (!isProfessor()) return;
   document.body.classList.remove('auth-screen');
   saveCurrentQuestionState();
   hideViews();
@@ -516,6 +741,13 @@ novaQuestaoBtn.addEventListener('click', () => {
 });
 
 cancelarNovaQuestaoBtn.addEventListener('click', showHome);
+cancelarEditarQuestaoBtn.addEventListener('click', () => {
+  currentEditingQuestionId = null;
+  showHome();
+});
+excluirEditarQuestaoBtn.addEventListener('click', () => {
+  if (currentEditingQuestionId) excluirQuestao(currentEditingQuestionId);
+});
 
 document.querySelectorAll('[data-auth-view="welcome"]').forEach((button) => {
   button.addEventListener('click', showWelcome);
@@ -524,6 +756,7 @@ formCadastro.addEventListener('submit', cadastrarUsuario);
 formLogin.addEventListener('submit', entrarUsuario);
 arquivoQuestoes.addEventListener('change', importarQuestoesJson);
 formNovaQuestao.addEventListener('submit', salvarNovaQuestao);
+formEditarQuestao.addEventListener('submit', salvarEdicaoQuestao);
 
 executarBtn.addEventListener('click', enviaFastAPI);
 
@@ -556,6 +789,139 @@ async function importarQuestoesJson(event) {
   }
 }
 
+async function abrirEdicaoQuestao(questionId) {
+  if (!isProfessor()) return;
+
+  try {
+    const response = await fetch(
+      `${apiUrl}/questoes/${encodeURIComponent(questionId)}`,
+      { headers: getAuthHeaders() }
+    );
+    const question = await response.json();
+    if (!response.ok) {
+      throw new Error(
+        getApiErrorMessage(question.detail, 'Não foi possível carregar a questão.')
+      );
+    }
+
+    currentEditingQuestionId = question.id_questao;
+    $('editar-titulo-questao').value = question.titulo;
+    $('editar-enunciado-questao').value = question.enunciado;
+    const workspaceStatus = $('editar-workspace-status');
+    workspaceStatus.textContent = question.blocos_esperados
+      ? ''
+      : 'Esta questão ainda não possui uma resposta em blocos salva. Monte a resposta esperada no Blockly.';
+
+    document.body.classList.remove('auth-screen');
+    hideViews();
+    editQuestionView.classList.remove('hidden');
+    voltarHomeBtn.classList.remove('hidden');
+    initEditWorkspace();
+    editWorkspace.clear();
+    if (question.blocos_esperados) {
+      Blockly.serialization.workspaces.load(question.blocos_esperados, editWorkspace);
+    }
+    setTimeout(() => Blockly.svgResize(editWorkspace), 0);
+    scrollToPageStart();
+  } catch (error) {
+    showAlert({ icon: 'error', title: 'Não foi possível carregar a questão', text: error.message });
+    console.error('Erro ao carregar questão para edição:', error);
+  }
+}
+
+async function excluirQuestao(questionId) {
+  if (!isProfessor()) return;
+  const question = questions.find((item) => item.id_questao === questionId);
+  const title = question ? question.titulo : questionId;
+  const confirmed = await confirmAction({
+    title: 'Excluir questão?',
+    text: `Deseja excluir a questão "${title}"?`,
+    confirmButtonText: 'Excluir',
+    confirmButtonColor: '#b42318'
+  });
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch(
+      `${apiUrl}/questoes/${encodeURIComponent(questionId)}`,
+      { method: 'DELETE', headers: getAuthHeaders() }
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(
+        getApiErrorMessage(result.detail, 'Não foi possível excluir a questão.')
+      );
+    }
+
+    if (currentEditingQuestionId === questionId) {
+      currentEditingQuestionId = null;
+      showHome();
+    }
+    await carregarQuestoes();
+  } catch (error) {
+    showAlert({ icon: 'error', title: 'Não foi possível excluir a questão', text: error.message });
+    console.error('Erro ao excluir questão:', error);
+  }
+}
+
+async function salvarEdicaoQuestao(event) {
+  event.preventDefault();
+  if (!editWorkspace || !currentEditingQuestionId || !isProfessor()) return;
+
+  const titulo = $('editar-titulo-questao').value.trim();
+  const idQuestao = currentEditingQuestionId;
+  if (
+    questions.some((question) =>
+      question.id_questao !== idQuestao
+      && normalizeQuestionId(question.titulo) === normalizeQuestionId(titulo)
+    )
+  ) {
+    showAlert({ icon: 'warning', title: 'Título já utilizado', text: 'Escolha outro título para a questão.' });
+    return;
+  }
+
+  const blocosEsperados = Blockly.serialization.workspaces.save(editWorkspace);
+  if (!blocosEsperados.blocks?.blocks?.length) {
+    showAlert({ icon: 'warning', title: 'Resposta esperada vazia', text: 'Monte a resposta esperada no Blockly antes de salvar.' });
+    return;
+  }
+
+  const payload = {
+    titulo,
+    enunciado: $('editar-enunciado-questao').value.trim(),
+    codigo_esperado: Blockly.Python.workspaceToCode(editWorkspace),
+    blocos_esperados: blocosEsperados
+  };
+
+  try {
+    const response = await fetch(
+      `${apiUrl}/questoes/${encodeURIComponent(idQuestao)}`,
+      {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+      }
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      if (response.status === 409) {
+        showAlert({ icon: 'warning', title: 'Título já utilizado', text: 'Escolha outro título para a questão.' });
+        return;
+      }
+      throw new Error(
+        getApiErrorMessage(result.detail, 'Não foi possível salvar as alterações.')
+      );
+    }
+
+    currentEditingQuestionId = null;
+    await carregarQuestoes();
+    showHome();
+  } catch (error) {
+    showAlert({ icon: 'error', title: 'Não foi possível salvar as alterações', text: error.message });
+    console.error('Erro ao editar a questão:', error);
+  }
+}
+
 async function salvarNovaQuestao(event) {
   event.preventDefault();
   if (!authorWorkspace || !currentUser || currentUser.tipo_usuario !== 'professor') return;
@@ -563,17 +929,17 @@ async function salvarNovaQuestao(event) {
   const titulo = $('novo-titulo-questao').value.trim();
   const idQuestao = normalizeQuestionId(titulo);
   if (!idQuestao) {
-    alert('Informe um título que gere um identificador válido.');
+    showAlert({ icon: 'warning', title: 'Título inválido', text: 'Informe um título que gere um identificador válido.' });
     return;
   }
   if (questions.some((question) => normalizeQuestionId(question.titulo) === idQuestao)) {
-    alert('Esse título não pode ser usado, ele já existe. Insira outro título e tente novamente.');
+    showAlert({ icon: 'warning', title: 'Título já utilizado', text: 'Escolha outro título para a questão.' });
     return;
   }
 
   const blocosEsperados = Blockly.serialization.workspaces.save(authorWorkspace);
   if (!blocosEsperados.blocks?.blocks?.length) {
-    alert('Monte a resposta esperada no Blockly antes de salvar.');
+    showAlert({ icon: 'warning', title: 'Resposta esperada vazia', text: 'Monte a resposta esperada no Blockly antes de salvar.' });
     return;
   }
 
@@ -595,7 +961,7 @@ async function salvarNovaQuestao(event) {
     const result = await response.json();
     if (!response.ok) {
       if (response.status === 409) {
-        alert('Esse título não pode ser usado, ele já existe. Insira outro título e tente novamente.');
+        showAlert({ icon: 'warning', title: 'Título já utilizado', text: 'Escolha outro título para a questão.' });
         return;
       }
       throw new Error(
@@ -608,11 +974,10 @@ async function salvarNovaQuestao(event) {
     showHome();
     importacaoStatus.textContent = `Questão ${result.id_questao} adicionada.`;
   } catch (error) {
-    alert(`Falha ao salvar a questão: ${error.message}`);
+    showAlert({ icon: 'error', title: 'Não foi possível salvar a questão', text: error.message });
     console.error('Erro ao salvar a questão:', error);
   }
 }
-
 
 async function enviaFastAPI() {
   if (
@@ -645,10 +1010,27 @@ async function enviaFastAPI() {
         getApiErrorMessage(resultado.detail, 'Não foi possível enviar a resposta.')
       );
     }
-    alert(resultado.message);
+    const showExpectedOutput = resultado.correta && resultado.expected_has_output;
+    const showStudentOutput = !resultado.correta && resultado.has_output;
+    const outputLines = showExpectedOutput
+      ? resultado.expected_output_lines : resultado.output_lines;
+    const outputError = showExpectedOutput
+      ? resultado.expected_output_error : resultado.output_error;
+    const outputTitle = showExpectedOutput
+      ? 'Saída correta da questão' : 'Saída do seu programa';
+    const outputContent = showExpectedOutput || showStudentOutput
+      ? `<h3>${outputTitle}</h3><pre>${escapeHtml((outputLines || []).join('\n'))}</pre>`
+      : outputError
+        ? `<p>${escapeHtml(outputError)}</p>`
+        : '';
+    showAlert({
+      icon: resultado.correta ? 'success' : 'info',
+      title: resultado.correta ? 'Resposta correta' : 'Resposta registrada',
+      html: `<p>${escapeHtml(resultado.message)}</p>${outputContent}`
+    });
   } catch (e) {
     console.error('Erro ao enviar os dados ao FastAPI:', e);
-    alert(`Falha ao enviar a resposta: ${e.message}`);
+    showAlert({ icon: 'error', title: 'Não foi possível enviar a resposta', text: e.message });
   }
 }
 

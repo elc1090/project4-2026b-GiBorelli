@@ -1,4 +1,4 @@
 backend\.env
 backend\conecta_blocos.db
 backend\Procfile
-backend\__pycache__/
+backend\__pycache__\

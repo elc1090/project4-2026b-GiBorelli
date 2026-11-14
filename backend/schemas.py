@@ -29,6 +29,15 @@ class QuestaoCreate(BaseModel):
         return self
 
 
+class QuestaoUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    titulo: str = Field(min_length=1)
+    enunciado: str = Field(min_length=1)
+    codigo_esperado: str | None = None
+    blocos_esperados: dict[str, Any] | None = None
+
+
 class QuestaoImport(BaseModel):
     questoes: list[QuestaoCreate] = Field(min_length=1)
 
@@ -46,6 +55,18 @@ class UsuarioLogin(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     email: EmailStr
+    senha: str = Field(min_length=1)
+
+
+class UsuarioUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    nome: str = Field(min_length=1)
+    email: EmailStr
+    senha: str | None = Field(default=None, min_length=6)
+
+
+class SenhaConfirmacao(BaseModel):
     senha: str = Field(min_length=1)
 
 

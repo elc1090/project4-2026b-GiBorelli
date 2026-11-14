@@ -6,7 +6,50 @@
       "enunciado": "Crie um algoritmo que some 2+2 e exiba o resultado.",
       "tipo_questao": "fechada",
       "codigo_esperado": "print(2 + 2)",
-      "blocos_esperados": null
+      "blocos_esperados": {
+        "blocks": {
+          "languageVersion": 0,
+          "blocks": [
+            {
+              "type": "text_print",
+              "id": "q1-print",
+              "x": 20,
+              "y": 20,
+              "inputs": {
+                "TEXT": {
+                  "block": {
+                    "type": "math_arithmetic",
+                    "id": "q1-add",
+                    "fields": {
+                      "OP": "ADD"
+                    },
+                    "inputs": {
+                      "A": {
+                        "block": {
+                          "type": "math_number",
+                          "id": "q1-left",
+                          "fields": {
+                            "NUM": 2
+                          }
+                        }
+                      },
+                      "B": {
+                        "block": {
+                          "type": "math_number",
+                          "id": "q1-right",
+                          "fields": {
+                            "NUM": 2
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
     },
     {
       "id_questao": "questao2",
@@ -14,23 +57,259 @@
       "enunciado": "Crie um algoritmo que mostre se 13 é menor que 18.",
       "tipo_questao": "fechada",
       "codigo_esperado": "print(13 < 18)",
-      "blocos_esperados": null
+      "blocos_esperados": {
+        "blocks": {
+          "languageVersion": 0,
+          "blocks": [
+            {
+              "type": "text_print",
+              "id": "q2-print",
+              "x": 20,
+              "y": 20,
+              "inputs": {
+                "TEXT": {
+                  "block": {
+                    "type": "logic_compare",
+                    "id": "q2-compare",
+                    "fields": {
+                      "OP": "LT"
+                    },
+                    "inputs": {
+                      "A": {
+                        "block": {
+                          "type": "math_number",
+                          "id": "q2-left",
+                          "fields": {
+                            "NUM": 13
+                          }
+                        }
+                      },
+                      "B": {
+                        "block": {
+                          "type": "math_number",
+                          "id": "q2-right",
+                          "fields": {
+                            "NUM": 18
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
     },
     {
       "id_questao": "questao3",
       "titulo": "Questão 3",
       "enunciado": "Pense em um código que indique se uma pessoa, de acordo com a idade, pode votar ou não (considerando as leis do Brasil). Monte-o no espaço de blocos.",
       "tipo_questao": "fechada",
-      "codigo_esperado": "idade = 18\nif idade >= 16:\n    print(True)\nelse:\n    print(False)",
-      "blocos_esperados": null
+      "codigo_esperado": "idade = None\nidade = 18\nif idade >= 16:\n  print(True)\nelse:\n  print(False)",
+      "blocos_esperados": {
+        "blocks": {
+          "languageVersion": 0,
+          "blocks": [
+            {
+              "type": "variables_set",
+              "id": "q3-set-age",
+              "x": 20,
+              "y": 20,
+              "fields": {
+                "VAR": {
+                  "id": "q3-var-age"
+                }
+              },
+              "inputs": {
+                "VALUE": {
+                  "block": {
+                    "type": "math_number",
+                    "id": "q3-age-value",
+                    "fields": {
+                      "NUM": 18
+                    }
+                  }
+                }
+              },
+              "next": {
+                "block": {
+                  "type": "controls_if",
+                  "id": "q3-if",
+                  "extraState": {
+                    "hasElse": true
+                  },
+                  "inputs": {
+                    "IF0": {
+                      "block": {
+                        "type": "logic_compare",
+                        "id": "q3-compare",
+                        "fields": {
+                          "OP": "GTE"
+                        },
+                        "inputs": {
+                          "A": {
+                            "block": {
+                              "type": "variables_get",
+                              "id": "q3-get-age",
+                              "fields": {
+                                "VAR": {
+                                  "id": "q3-var-age"
+                                }
+                              }
+                            }
+                          },
+                          "B": {
+                            "block": {
+                              "type": "math_number",
+                              "id": "q3-minimum-age",
+                              "fields": {
+                                "NUM": 16
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "DO0": {
+                      "block": {
+                        "type": "text_print",
+                        "id": "q3-print-true",
+                        "inputs": {
+                          "TEXT": {
+                            "block": {
+                              "type": "logic_boolean",
+                              "id": "q3-true",
+                              "fields": {
+                                "BOOL": "TRUE"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "ELSE": {
+                      "block": {
+                        "type": "text_print",
+                        "id": "q3-print-false",
+                        "inputs": {
+                          "TEXT": {
+                            "block": {
+                              "type": "logic_boolean",
+                              "id": "q3-false",
+                              "fields": {
+                                "BOOL": "FALSE"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "variables": [
+          {
+            "name": "idade",
+            "id": "q3-var-age"
+          },
+          {
+            "name": "item",
+            "id": "q3-var-item"
+          }
+        ]
+      }
     },
     {
       "id_questao": "questao4",
       "titulo": "Questão 4",
       "enunciado": "Crie um algoritmo que mostre os números de 1 a 10.",
       "tipo_questao": "fechada",
-      "codigo_esperado": "for i in range(1, 11):\n    print(i)",
-      "blocos_esperados": null
+      "codigo_esperado": "i = None\nfor i in range(1, 11):\n  print(i)",
+      "blocos_esperados": {
+        "blocks": {
+          "languageVersion": 0,
+          "blocks": [
+            {
+              "type": "controls_for",
+              "id": "q4-for",
+              "x": 20,
+              "y": 20,
+              "fields": {
+                "VAR": {
+                  "id": "q4-var-i"
+                }
+              },
+              "inputs": {
+                "FROM": {
+                  "block": {
+                    "type": "math_number",
+                    "id": "q4-from",
+                    "fields": {
+                      "NUM": 1
+                    }
+                  }
+                },
+                "TO": {
+                  "block": {
+                    "type": "math_number",
+                    "id": "q4-to",
+                    "fields": {
+                      "NUM": 10
+                    }
+                  }
+                },
+                "BY": {
+                  "block": {
+                    "type": "math_number",
+                    "id": "q4-by",
+                    "fields": {
+                      "NUM": 1
+                    }
+                  }
+                },
+                "DO": {
+                  "block": {
+                    "type": "text_print",
+                    "id": "q4-print",
+                    "inputs": {
+                      "TEXT": {
+                        "block": {
+                          "type": "variables_get",
+                          "id": "q4-get-i",
+                          "fields": {
+                            "VAR": {
+                              "id": "q4-var-i"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "variables": [
+          {
+            "name": "i",
+            "id": "q4-var-i"
+          },
+          {
+            "name": "j",
+            "id": "q4-var-j"
+          },
+          {
+            "name": "item",
+            "id": "q4-var-item"
+          }
+        ]
+      }
     },
     {
       "id_questao": "questao5",
@@ -38,7 +317,42 @@
       "enunciado": "Crie um algoritmo que calcule 21 dividido por 5.",
       "tipo_questao": "fechada",
       "codigo_esperado": "21 / 5",
-      "blocos_esperados": null
+      "blocos_esperados": {
+        "blocks": {
+          "languageVersion": 0,
+          "blocks": [
+            {
+              "type": "math_arithmetic",
+              "id": "q5-divide",
+              "x": 20,
+              "y": 20,
+              "fields": {
+                "OP": "DIVIDE"
+              },
+              "inputs": {
+                "A": {
+                  "block": {
+                    "type": "math_number",
+                    "id": "q5-numerator",
+                    "fields": {
+                      "NUM": 21
+                    }
+                  }
+                },
+                "B": {
+                  "block": {
+                    "type": "math_number",
+                    "id": "q5-denominator",
+                    "fields": {
+                      "NUM": 5
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
     }
   ]
 }
