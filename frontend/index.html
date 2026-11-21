@@ -90,6 +90,8 @@
           <label><input type="radio" name="tipo_usuario" value="estudante" required checked /> Aluno</label>
           <label><input type="radio" name="tipo_usuario" value="professor" /> Professor</label>
         </fieldset>
+        <p class="google-auth-help">Ou entre com o Google</p>
+        <div id="google-cadastro-btn" class="google-signin" aria-label="Cadastrar com Google"></div>
         <p id="cadastro-status" class="form-status" role="status" aria-live="polite"></p>
         <div class="action-bar">
           <button class="secondary-btn" type="button" data-auth-view="welcome">Cancelar</button>
@@ -109,6 +111,8 @@
         <label for="login-senha">Senha</label>
         <input id="login-senha" name="senha" type="password" required autocomplete="current-password" />
         <p id="login-status" class="form-status" role="status" aria-live="polite"></p>
+        <p class="google-auth-help">Ou entre com o Google</p>
+        <div id="google-login-btn" class="google-signin" aria-label="Entrar com Google"></div>
         <div class="action-bar">
           <button class="secondary-btn" type="button" data-auth-view="welcome">Cancelar</button>
           <button id="enviar-login-btn" type="submit">Entrar</button>
@@ -232,6 +236,7 @@
   <script src="https://unpkg.com/blockly/blockly.min.js"></script>
   <script src="https://unpkg.com/blockly/python_compressed.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.5/dist/sweetalert2.all.min.js"></script>
+  <script src="config.js"></script>
   <script src="api.js"></script>
   <script src="alerts.js"></script>
   <script src="script.js"></script>

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import DateTime, JSON, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, JSON, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from typing import Any
 
@@ -47,6 +47,12 @@ class Usuario(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     email: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
     senha_hash: Mapped[str] = mapped_column(String, nullable=False)
+    has_password: Mapped[bool] = mapped_column(
+        nullable=False,
+        default=True,
+        server_default=text("TRUE"),
+    )
+    google_sub: Mapped[str | None] = mapped_column(String, nullable=True)
     nome: Mapped[str] = mapped_column(String, nullable=False, index=True)
     tipo_usuario: Mapped[str] = mapped_column(String, nullable=False)
     criado_em: Mapped[datetime] = mapped_column(

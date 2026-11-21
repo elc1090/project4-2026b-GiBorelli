@@ -128,6 +128,8 @@ const cadastroStatus = $('cadastro-status');
 const loginStatus = $('login-status');
 const enviarCadastroBtn = $('enviar-cadastro-btn');
 const enviarLoginBtn = $('enviar-login-btn');
+const googleCadastroBtn = $('google-cadastro-btn');
+const googleLoginBtn = $('google-login-btn');
 
 const apiUrl = window.AppApi.baseUrl;
 const { alert: showAlert, confirm: confirmAction, requestPassword } = window.AppAlerts;
@@ -518,17 +520,28 @@ async function excluirPerfil() {
     return;
   }
 
-  const result = await requestPassword({
-    title: 'Excluir sua conta?',
-    text: 'Esta ação não pode ser desfeita. Confirme com sua senha atual.',
-    confirmButtonText: 'Excluir conta'
-  });
-  if (!result.isConfirmed) return;
+  let senha = null;
+  if (currentUser.has_password) {
+    const result = await requestPassword({
+      title: 'Excluir sua conta?',
+      text: 'Esta ação não pode ser desfeita. Confirme com sua senha atual.',
+      confirmButtonText: 'Excluir conta'
+    });
+    if (!result.isConfirmed) return;
+    senha = result.value;
+  } else {
+    const confirmed = await confirmAction({
+      title: 'Excluir sua conta?',
+      text: 'Esta ação não pode ser desfeita. Confirme para excluir sua conta Google.',
+      confirmButtonText: 'Excluir conta'
+    });
+    if (!confirmed) return;
+  }
 
   try {
     await window.AppApi.request('/auth/me', {
       method: 'DELETE',
-      body: { senha: result.value }
+      body: { senha }
     });
     profileEditTarget = null;
     logout();
@@ -1096,18 +1109,93 @@ async function entrarUsuario(event) {
         )
       );
     }
-    setToken(result.access_token);
-    currentUser = result.usuario;
-    updateHeader();
+    await startUserSession(result);
     formLogin.reset();
-    showHome();
-    await carregarQuestoes();
   } catch (error) {
     loginStatus.textContent = error.message;
     console.error('Erro ao fazer login:', error);
   } finally {
     enviarLoginBtn.disabled = false;
   }
+}
+
+async function startUserSession(result) {
+  setToken(result.access_token);
+  currentUser = result.usuario;
+  updateHeader();
+  showHome();
+  await carregarQuestoes();
+}
+
+async function handleGoogleCredential(response) {
+  if (!response.credential) {
+    const statusElement = registerView.classList.contains('hidden')
+      ? loginStatus
+      : cadastroStatus;
+    statusElement.textContent = 'O Google não retornou uma credencial válida.';
+    return;
+  }
+
+  const isRegistering = !registerView.classList.contains('hidden');
+  const statusElement = isRegistering ? cadastroStatus : loginStatus;
+  statusElement.textContent = 'Verificando sua conta Google...';
+
+  const payload = { credential: response.credential };
+  if (isRegistering) {
+    payload.tipo_usuario = new FormData(formCadastro).get('tipo_usuario');
+  }
+
+  try {
+    const result = await window.AppApi.request('/auth/google', {
+      method: 'POST',
+      authenticated: false,
+      body: payload
+    });
+    await startUserSession(result);
+    formCadastro.reset();
+    formLogin.reset();
+  } catch (error) {
+    statusElement.textContent = error.message;
+    console.error('Erro ao autenticar com Google:', error);
+  }
+}
+
+async function initializeGoogleSignIn() {
+  const clientId = window.AppConfig && window.AppConfig.googleClientId.trim();
+  if (!clientId) {
+    const setupMessage = 'Google indisponível: configure o ID do cliente em frontend/config.js.';
+    googleCadastroBtn.textContent = setupMessage;
+    googleLoginBtn.textContent = setupMessage;
+    return;
+  }
+
+  const script = document.createElement('script');
+  script.src = 'https://accounts.google.com/gsi/client';
+  script.async = true;
+  script.defer = true;
+  script.onload = () => {
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: handleGoogleCredential
+    });
+    const buttonOptions = {
+      type: 'standard',
+      theme: 'filled_black',
+      size: 'large',
+      text: 'continue_with',
+      shape: 'pill',
+      logo_alignment: 'left',
+      width: Math.max(200, Math.min(320, window.innerWidth - 64))
+    };
+    window.google.accounts.id.renderButton(googleCadastroBtn, buttonOptions);
+    window.google.accounts.id.renderButton(googleLoginBtn, buttonOptions);
+  };
+  script.onerror = () => {
+    const errorMessage = 'Não foi possível carregar o acesso do Google. Tente novamente mais tarde.';
+    googleCadastroBtn.textContent = errorMessage;
+    googleLoginBtn.textContent = errorMessage;
+  };
+  document.head.append(script);
 }
 
 async function initializeApp() {
@@ -1118,4 +1206,5 @@ async function initializeApp() {
   await carregarQuestoes();
 }
 
+initializeGoogleSignIn();
 initializeApp();

@@ -52,6 +52,28 @@ def init_db():
 
     Base.metadata.create_all(bind=engine)
 
+    usuario_columns = {
+        column["name"] for column in inspect(engine).get_columns("usuarios")
+    }
+    with engine.begin() as connection:
+        if "has_password" not in usuario_columns:
+            connection.execute(
+                text(
+                    "ALTER TABLE usuarios "
+                    "ADD COLUMN has_password BOOLEAN NOT NULL DEFAULT TRUE"
+                )
+            )
+        if "google_sub" not in usuario_columns:
+            connection.execute(
+                text("ALTER TABLE usuarios ADD COLUMN google_sub VARCHAR")
+            )
+        connection.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS "
+                "uq_usuarios_google_sub_idx ON usuarios (google_sub)"
+            )
+        )
+
     questao_columns = {
         column["name"] for column in inspect(engine).get_columns("questoes")
     }

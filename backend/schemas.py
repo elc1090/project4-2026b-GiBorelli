@@ -58,6 +58,11 @@ class UsuarioLogin(BaseModel):
     senha: str = Field(min_length=1)
 
 
+class GoogleAuthRequest(BaseModel):
+    credential: str = Field(min_length=1)
+    tipo_usuario: Literal["professor", "estudante"] | None = None
+
+
 class UsuarioUpdate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
@@ -67,7 +72,7 @@ class UsuarioUpdate(BaseModel):
 
 
 class SenhaConfirmacao(BaseModel):
-    senha: str = Field(min_length=1)
+    senha: str | None = Field(default=None, min_length=1)
 
 
 class UsuarioResponse(BaseModel):
@@ -77,6 +82,7 @@ class UsuarioResponse(BaseModel):
     nome: str
     email: EmailStr
     tipo_usuario: str
+    has_password: bool
     criado_em: datetime
 
 

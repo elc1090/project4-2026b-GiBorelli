@@ -1,19 +1,28 @@
 import json
+import os
+import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 import unicodedata
 from typing import Any
 
+from google.auth.exceptions import GoogleAuthError
+from google.auth.transport.requests import Request as GoogleRequest
+from google.oauth2 import id_token
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, get_db, init_db
 from models import Questao, Tentativa, Usuario
-from schemas import QuestaoCreate, QuestaoImport, QuestaoUpdate, SenhaConfirmacao, TentativaCreate, UsuarioCreate, UsuarioLogin, UsuarioResponse, UsuarioUpdate, TokenResponse
+from schemas import GoogleAuthRequest, QuestaoCreate, QuestaoImport, QuestaoUpdate, SenhaConfirmacao, TentativaCreate, UsuarioCreate, UsuarioLogin, UsuarioResponse, UsuarioUpdate, TokenResponse
 from security import create_access_token, decode_access_token, generate_hash, verify_password
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -57,6 +66,59 @@ async def require_professor(current_user: Usuario = Depends(get_current_user)) -
             detail="Acesso restrito: apenas professores podem realizar esta operação.",
         )
     return current_user
+
+
+def verify_google_credential(credential: str) -> dict[str, Any]:
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="O login Google ainda não foi configurado no servidor.",
+        )
+    try:
+        claims = id_token.verify_oauth2_token(
+            credential,
+            GoogleRequest(),
+            GOOGLE_CLIENT_ID,
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="A credencial do Google é inválida ou expirou.",
+        ) from error
+    except GoogleAuthError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Não foi possível verificar a credencial com o Google.",
+        ) from error
+
+    if claims.get("email_verified") is not True:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Confirme seu e-mail na conta Google antes de continuar.",
+        )
+    if not all(
+        isinstance(claims.get(key), str) and claims[key].strip()
+        for key in ("sub", "email", "name")
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="A conta Google não forneceu nome, e-mail ou identificador válidos.",
+        )
+    return dict(claims)
+
+
+def create_user_token_response(user: Usuario) -> dict[str, Any]:
+    access_token = create_access_token({
+        "sub": str(user.id),
+        "email": user.email,
+        "nome": user.nome,
+        "tipo_usuario": user.tipo_usuario,
+    })
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "usuario": user,
+    }
 
 
 def normalize_code(code: str) -> str:
@@ -641,22 +703,64 @@ async def login_user(data: UsuarioLogin, db: Session = Depends(get_db)):
     user = db.scalar(
         select(Usuario).where(Usuario.email == data.email)
     )
-    if user is None or not verify_password(data.senha, user.senha_hash):
+    if (
+        user is None
+        or not user.has_password
+        or not verify_password(data.senha, user.senha_hash)
+    ):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="E-mail ou senha incorretos.", headers={"WWW-Authenticate": "Bearer"})
 
-    token_data = {
-        "sub": str(user.id),
-        "email": user.email,
-        "nome": user.nome,
-        "tipo_usuario": user.tipo_usuario,
-    }
-    access_token = create_access_token(token_data)
+    return create_user_token_response(user)
 
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "usuario": user,
-    }
+
+@app.post("/auth/google", response_model=TokenResponse)
+async def authenticate_google(
+    data: GoogleAuthRequest,
+    db: Session = Depends(get_db),
+):
+    claims = verify_google_credential(data.credential)
+    google_sub = claims["sub"]
+    email = claims["email"].strip().lower()
+    user = db.scalar(select(Usuario).where(Usuario.google_sub == google_sub))
+
+    if user is None:
+        user = db.scalar(
+            select(Usuario).where(func.lower(Usuario.email) == email)
+        )
+        if user is not None and user.google_sub not in (None, google_sub):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Este e-mail já está vinculado a outra conta Google.",
+            )
+        if user is None:
+            if data.tipo_usuario is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Conta não encontrada. Selecione Cadastro e escolha Aluno ou Professor.",
+                )
+            user = Usuario(
+                nome=claims["name"].strip(),
+                email=email,
+                senha_hash=generate_hash(secrets.token_urlsafe(32)),
+                has_password=False,
+                google_sub=google_sub,
+                tipo_usuario=data.tipo_usuario,
+            )
+            db.add(user)
+        else:
+            user.google_sub = google_sub
+
+    try:
+        db.commit()
+        db.refresh(user)
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Não foi possível vincular esta conta Google. Tente entrar novamente.",
+        ) from error
+
+    return create_user_token_response(user)
 
 
 @app.get("/auth/me", response_model=UsuarioResponse)
@@ -686,6 +790,7 @@ async def update_my_profile(
     current_user.email = data.email
     if data.senha:
         current_user.senha_hash = generate_hash(data.senha)
+        current_user.has_password = True
     db.commit()
     db.refresh(current_user)
     return current_user
@@ -697,10 +802,18 @@ async def delete_my_profile(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
-    if not verify_password(data.senha, current_user.senha_hash):
+    if current_user.has_password and (
+        data.senha is None
+        or not verify_password(data.senha, current_user.senha_hash)
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="A senha atual está incorreta.",
+        )
+    if not current_user.has_password and not current_user.google_sub:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Não foi possível confirmar a autenticação desta conta.",
         )
     db.delete(current_user)
     db.commit()
@@ -772,6 +885,7 @@ async def update_student(
     student.email = data.email
     if data.senha:
         student.senha_hash = generate_hash(data.senha)
+        student.has_password = True
     db.commit()
     db.refresh(student)
     return student

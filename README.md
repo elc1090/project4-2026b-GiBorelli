@@ -7,23 +7,58 @@
 https://conectablocos.vercel.app/
 
 ## Desenvolvedor(a) / Desenvolvedor(es/as)
-Giovana Borelli - Ciência da Computação
+**Giovana Borelli** - Ciência da Computação
 
 ## Proposta
-Substitua este texto pela descrição da proposta que consta no documento compartilhado com a turma. Indique se é uma continuação de projeto anterior ou uma nova aplicação, explicando o contraste/avanço em relação aos projetos anteriores.
+Será continuado o desenvolvimento dos projetos anteriores, mas o desenvolvimento será individual. As novas funcionalidades a serem incluídas serão:
+- Login federado;
+- Resultados ao rodar as questões mostrados com SweetAlert;
+- Criação de turmas (na qual a adição de alunos na turma será feita pelos professores).
+Também buscarei realizar testes com usuários. 
+Tecnologias: utilizarei as mesmas tecnologias já utilizadas. No back-end: Python (FastAPI); no banco de dados: PostGresSQL (Render); para o front-end: HTML, CSS, JavaScript e Blockly; e para o deploy: Vercel + Render.
 
-
+<Indique se é uma continuação de projeto anterior ou uma nova aplicação, explicando o contraste/avanço em relação aos projetos anteriores>
 
 ## Desenvolvimento
 
 ### Processo
 
-Cada pessoa deve explicar e justificar suas escolhas, destacando o que já sabia ou não, como lidou com dúvidas ou dificuldades específicas, que adaptações foram necessárias, etc. Evitar comentários genéricos como "pedi ajuda para IA e resolvi", dando preferência para expor detalhes específicos de um problema e sua solução.
+
 
 ### Trechos de código
+Gostaria de destacar esse primeiro trecho de código, porque .
+```
+ 
+```
 
-Substitua este texto por uma indicação de pelo menos 3 trechos de código que você(s) queira(m) destacar para a turma (por exemplo, para explicar algo que aprendeu, para alertar sobre alguma dificuldade de compreensão, para mostrar uma curiosidade, etc).
+O segundo trecho de código foi separado para destacar . Demonstra-se .
 
+```
+
+```
+
+O terceiro e último trecho está relacionado com .
+
+```
+(function () {
+  function alert(options) {
+    const config = {
+      theme: 'auto',
+      confirmButtonText: 'Entendi',
+      ...options
+    };
+    if (!window.Swal) {
+      window.alert(config.text || config.title || 'Ocorreu um erro.');
+      return Promise.resolve({ isConfirmed: true });
+    }
+    return window.Swal.fire(config);
+  }
+  
+. . .
+
+  window.AppAlerts = { alert, confirm, requestPassword };
+})();  
+```
 
 ## Tecnologias
 
@@ -42,11 +77,9 @@ Substitua este texto por uma indicação de pelo menos 3 trechos de código que 
 - Github Copilot Chat
 
 ## Referências e créditos
-
-- ...
-- ...
-
-
+- Render Web Services: https://render.com/docs/web-services
+- SweetAlert (usage e theme): https://sweetalert2.github.io/#usage
+- 
 
 
 ---
