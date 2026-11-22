@@ -1127,82 +1127,67 @@ async function startUserSession(result) {
   await carregarQuestoes();
 }
 
-async function handleGoogleCredential(response) {
-  if (!response.credential) {
-    const statusElement = registerView.classList.contains('hidden')
-      ? loginStatus
-      : cadastroStatus;
-    statusElement.textContent = 'O Google não retornou uma credencial válida.';
-    return;
-  }
-
-  const isRegistering = !registerView.classList.contains('hidden');
-  const statusElement = isRegistering ? cadastroStatus : loginStatus;
-  statusElement.textContent = 'Verificando sua conta Google...';
-
-  const payload = { credential: response.credential };
-  if (isRegistering) {
-    payload.tipo_usuario = new FormData(formCadastro).get('tipo_usuario');
-  }
-
-  try {
-    const result = await window.AppApi.request('/auth/google', {
-      method: 'POST',
-      authenticated: false,
-      body: payload
+function initializeGoogleSignIn() {
+  const createGoogleButton = (container, isRegistration) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'google-oauth-btn';
+    button.textContent = isRegistration ? 'Cadastrar com Google' : 'Entrar com Google';
+    button.addEventListener('click', () => {
+      const params = new URLSearchParams();
+      if (isRegistration) {
+        params.set(
+          'tipo_usuario',
+          new FormData(formCadastro).get('tipo_usuario')
+        );
+      }
+      const query = params.toString();
+      window.location.assign(
+        `${apiUrl}/auth/google/start${query ? `?${query}` : ''}`
+      );
     });
-    await startUserSession(result);
-    formCadastro.reset();
-    formLogin.reset();
-  } catch (error) {
-    statusElement.textContent = error.message;
-    console.error('Erro ao autenticar com Google:', error);
-  }
+    container.replaceChildren(button);
+  };
+
+  createGoogleButton(googleCadastroBtn, true);
+  createGoogleButton(googleLoginBtn, false);
 }
 
-async function initializeGoogleSignIn() {
-  const clientId = window.AppConfig && window.AppConfig.googleClientId.trim();
-  if (!clientId) {
-    const setupMessage = 'Google indisponível: configure o ID do cliente em frontend/config.js.';
-    googleCadastroBtn.textContent = setupMessage;
-    googleLoginBtn.textContent = setupMessage;
-    return;
-  }
+function consumeGoogleAuthRedirect() {
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  const token = params.get('google_access_token');
+  const error = params.get('google_error');
+  if (!token && !error) return null;
 
-  const script = document.createElement('script');
-  script.src = 'https://accounts.google.com/gsi/client';
-  script.async = true;
-  script.defer = true;
-  script.onload = () => {
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: handleGoogleCredential
-    });
-    const buttonOptions = {
-      type: 'standard',
-      theme: 'filled_black',
-      size: 'large',
-      text: 'continue_with',
-      shape: 'pill',
-      logo_alignment: 'left',
-      width: Math.max(200, Math.min(320, window.innerWidth - 64))
-    };
-    window.google.accounts.id.renderButton(googleCadastroBtn, buttonOptions);
-    window.google.accounts.id.renderButton(googleLoginBtn, buttonOptions);
+  window.history.replaceState(
+    null,
+    document.title,
+    `${window.location.pathname}${window.location.search}`
+  );
+  if (token) setToken(token);
+
+  const messages = {
+    cancelled: 'O acesso com Google foi cancelado.',
+    state: 'A solicitação Google expirou ou não pôde ser validada. Tente novamente.',
+    exchange: 'Não foi possível trocar o código com o Google. Tente novamente.',
+    credential: 'O Google não retornou uma credencial válida. Tente novamente.',
+    register: 'Esta conta ainda não está cadastrada. Escolha Cadastro e selecione Aluno ou Professor.',
+    account: 'Não foi possível vincular esta conta Google. Entre em contato com o suporte.'
   };
-  script.onerror = () => {
-    const errorMessage = 'Não foi possível carregar o acesso do Google. Tente novamente mais tarde.';
-    googleCadastroBtn.textContent = errorMessage;
-    googleLoginBtn.textContent = errorMessage;
-  };
-  document.head.append(script);
+  return error ? (messages[error] || 'Não foi possível entrar com o Google.') : null;
 }
 
 async function initializeApp() {
+  const googleError = consumeGoogleAuthRedirect();
   await checkSession();
   updateHeader();
-  if (currentUser) showHome();
-  else showWelcome();
+  if (currentUser) {
+    showHome();
+  } else if (googleError) {
+    showLogin('', googleError);
+  } else {
+    showWelcome();
+  }
   await carregarQuestoes();
 }
 
