@@ -47,5 +47,20 @@
     });
   }
 
-  window.AppAlerts = { alert, confirm, requestPassword };
+  function confirmTypeAccount(options){
+    if (!window.Swal) {
+      return Promise.resolve(window.confirm(options.text || options.title));
+    }
+    return window.Swal.fire({
+      theme: 'auto',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Continuar',
+      cancelButtonText: 'Voltar',
+      reverseButtons: true,
+      ...options
+    }).then((result) => result.isConfirmed);
+  }
+
+  window.AppAlerts = { alert, confirm, requestPassword, confirmTypeAccount };
 })();

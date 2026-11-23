@@ -1,6 +1,6 @@
 # Projeto final
 
-![Substitua a imagem ao lado por um GIF/WEBP animado mostrando seu projeto](./moho_follow_through2.gif "GIF animado do projeto. Imagem temporária de Moho Animation https://moho.lostmarble.com/products/moho-pro-special-halls-head-college")
+![GIF demonstrando as novas funcionalidades da aplicação web](./GIF.gif)
 
 
 ## Acesso
@@ -17,8 +17,6 @@ Será continuado o desenvolvimento dos projetos anteriores, mas o desenvolviment
 Também buscarei realizar testes com usuários. 
 Tecnologias: utilizarei as mesmas tecnologias já utilizadas. No back-end: Python (FastAPI); no banco de dados: PostGresSQL (Render); para o front-end: HTML, CSS, JavaScript e Blockly; e para o deploy: Vercel + Render.
 
-<Indique se é uma continuação de projeto anterior ou uma nova aplicação, explicando o contraste/avanço em relação aos projetos anteriores>
-
 ## Desenvolvimento
 
 ### Processo
@@ -28,16 +26,35 @@ Tecnologias: utilizarei as mesmas tecnologias já utilizadas. No back-end: Pytho
 ### Trechos de código
 Gostaria de destacar esse primeiro trecho de código, porque .
 ```
- 
-```
-
-O segundo trecho de código foi separado para destacar . Demonstra-se .
 
 ```
 
+O segundo trecho de código foi separado para destacar a integração com cadastro do Google. Demonstra-se a seção que verifica se o login do usuário está correto e, se sim, cria token para ele. Além disso, mostra-se o cabeçalho da seção para iniciar com o google, em que é necessário já enviar se o usuário será Professor ou Estudante.
+
+```
+@router.post("/auth/login", response_model=TokenResponse)
+async def login_user(data: UsuarioLogin, db: Session = Depends(get_db)):
+    user = db.scalar(
+        select(Usuario).where(Usuario.email == data.email)
+    )
+    if (
+        user is None
+        or not user.has_password
+        or not verify_password(data.senha, user.senha_hash)
+    ):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="E-mail ou senha incorretos.", headers={"WWW-Authenticate": "Bearer"})
+
+    return create_user_token_response(user)
+
+
+@router.get("/auth/google/start")
+async def start_google_auth( tipo_usuario: Literal["professor", "estudante"] | None = None, ):
+
+. . .
+
 ```
 
-O terceiro e último trecho está relacionado com .
+O terceiro e último trecho está relacionado com os alertas que foram modificados com SweetAlert.
 
 ```
 (function () {
@@ -79,7 +96,7 @@ O terceiro e último trecho está relacionado com .
 ## Referências e créditos
 - Render Web Services: https://render.com/docs/web-services
 - SweetAlert (usage e theme): https://sweetalert2.github.io/#usage
-- 
+- Configuração da Conexão com OAuth do Google: https://developers.google.com/identity/protocols/oauth2/web-server?hl=pt-br
 
 
 ---

@@ -316,35 +316,43 @@
       "titulo": "Questão 5",
       "enunciado": "Crie um algoritmo que calcule 21 dividido por 5.",
       "tipo_questao": "fechada",
-      "codigo_esperado": "21 / 5",
+      "codigo_esperado": "print(21 / 5)",
       "blocos_esperados": {
         "blocks": {
           "languageVersion": 0,
           "blocks": [
             {
-              "type": "math_arithmetic",
-              "id": "q5-divide",
+              "type": "text_print",
+              "id": "q5-print",
               "x": 20,
               "y": 20,
-              "fields": {
-                "OP": "DIVIDE"
-              },
               "inputs": {
-                "A": {
+                "TEXT": {
                   "block": {
-                    "type": "math_number",
-                    "id": "q5-numerator",
+                    "type": "math_arithmetic",
+                    "id": "q5-divide",
                     "fields": {
-                      "NUM": 21
-                    }
-                  }
-                },
-                "B": {
-                  "block": {
-                    "type": "math_number",
-                    "id": "q5-denominator",
-                    "fields": {
-                      "NUM": 5
+                      "OP": "DIVIDE"
+                    },
+                    "inputs": {
+                      "A": {
+                        "block": {
+                          "type": "math_number",
+                          "id": "q5-numerator",
+                          "fields": {
+                            "NUM": 21
+                          }
+                        }
+                      },
+                      "B": {
+                        "block": {
+                          "type": "math_number",
+                          "id": "q5-denominator",
+                          "fields": {
+                            "NUM": 5
+                          }
+                        }
+                      }
                     }
                   }
                 }

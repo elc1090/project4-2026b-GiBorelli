@@ -30,7 +30,6 @@
       <div class="welcome-content">
         <img class="welcome-icon" src="img/quebra-cabeca.ico" alt="Ícone do Conecta Blocos" />
         <div>
-          <!--<p class="eyebrow">Conecta Blocos</p>-->
           <h1>Recrie Algoritmos de Programação Conectando Blocos!</h1>
           <p>Entre ou cadastre-se para acessar as atividades.</p>
         </div>
@@ -141,7 +140,7 @@
     <section id="create-question-view" class="view hidden">
       <div class="question-detalhe">
         <h2>Criar questão</h2>
-        <p>Monte no Blockly a solução que será usada como resposta esperada.</p>
+        <p>Em questões abertas, os tipos de blocos montados serão obrigatórios, não necessariamente os conteúdos dos blocos. Em questões fechadas, a saída da solução será a resposta esperada de forma igual ao montado.</p>
       </div>
 
       <form id="form-nova-questao" class="authoring-panel">
@@ -149,6 +148,11 @@
         <input id="novo-titulo-questao" type="text" required placeholder="ex.: Questão 6" />
         <label for="novo-enunciado-questao">Enunciado</label>
         <textarea id="novo-enunciado-questao" required rows="3"></textarea>
+        <label for="novo-tipo-questao">Tipo de questão</label>
+        <select id="novo-tipo-questao" required>
+          <option value="aberta">Aberta</option>
+          <option value="fechada">Fechada</option>
+        </select>
 
         <div class="blockly-panel">
           <div id="blockly-author" aria-label="Editor Blockly para a resposta esperada"></div>
@@ -234,9 +238,14 @@
   <script src="https://unpkg.com/blockly/blockly.min.js"></script>
   <script src="https://unpkg.com/blockly/python_compressed.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.5/dist/sweetalert2.all.min.js"></script>
-  <script src="config.js"></script>
-  <script src="api.js"></script>
-  <script src="alerts.js"></script>
-  <script src="script.js"></script>
+  <script src="scripts/api.js"></script>
+  <script src="scripts/alerts.js"></script>
+  <script src="index.js"></script>
+  <script src="scripts/questions.js"></script>
+  <script src="scripts/profile.js"></script>
+  <script src="scripts/question-editor.js"></script>
+  <script src="scripts/auth.js"></script>
+  <script src="scripts/navigation.js"></script>
+  <script src="scripts/init.js"></script>
 </body>
 </html>

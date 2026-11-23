@@ -1,0 +1,116 @@
+{
+  "questoes": [
+    {
+      "id_questao": "questao6",
+      "titulo": "Questão 6",
+      "enunciado": "Crie um algoritmo que mostre o seu nome.",
+      "tipo_questao": "aberta",
+      "codigo_esperado": "print('')",
+      "blocos_esperados": {
+        "blocks": {
+          "languageVersion": 0,
+          "blocks": [
+            {
+              "type": "text_print",
+              "id": "q6-print",
+              "x": 20,
+              "y": 20,
+              "inputs": {
+                "TEXT": {
+                  "block": {
+                    "type": "text",
+                    "id": "q6-name",
+                    "fields": {
+                      "TEXT": "Nome"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id_questao": "questao7",
+      "titulo": "Questão 7",
+      "enunciado": "Armazene seu ano de nascimento em uma variável e exiba o resultado de 2026 menos esse valor.",
+      "tipo_questao": "aberta",
+      "codigo_esperado": "print(2026-ano)",
+      "blocos_esperados": {
+        "blocks": {
+          "languageVersion": 0,
+          "blocks": [
+            {
+              "type": "variables_set",
+              "id": "q7-set-year",
+              "x": 20,
+              "y": 20,
+              "fields": {
+                "VAR": {
+                  "id": "q7-var-year"
+                }
+              },
+              "inputs": {
+                "VALUE": {
+                  "block": {
+                    "type": "math_number",
+                    "id": "q7-year-value",
+                    "fields": {
+                      "NUM": 2000
+                    }
+                  }
+                }
+              },
+              "next": {
+                "block": {
+                  "type": "text_print",
+                  "id": "q7-print-age",
+                  "inputs": {
+                    "TEXT": {
+                      "block": {
+                        "type": "math_arithmetic",
+                        "id": "q7-subtract",
+                        "fields": {
+                          "OP": "MINUS"
+                        },
+                        "inputs": {
+                          "A": {
+                            "block": {
+                              "type": "math_number",
+                              "id": "q7-current-year",
+                              "fields": {
+                                "NUM": 2026
+                              }
+                            }
+                          },
+                          "B": {
+                            "block": {
+                              "type": "variables_get",
+                              "id": "q7-get-year",
+                              "fields": {
+                                "VAR": {
+                                  "id": "q7-var-year"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "variables": [
+          {
+            "name": "ano",
+            "id": "q7-var-year"
+          }
+        ]
+      }
+    }
+  ]
+}
